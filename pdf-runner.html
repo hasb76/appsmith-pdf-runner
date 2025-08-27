@@ -1,17 +1,23 @@
 <!doctype html>
-<meta charset="utf-8">
-<title>PDF Runner</title>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-<body style="font-family: system-ui, sans-serif; margin: 24px;">
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>PDF Runner</title>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
 <script>
 (function () {
   // 1) Read base64 payload from the URL hash
-  //    URL shape: https://your-domain.com/pdf-runner.html#data=<base64>
+  //    URL shape: https://your-site/pdf-runner.html#data=<base64>
   const raw = (location.hash || "").replace(/^#/, "");
   const params = new URLSearchParams(raw);
   const b64 = params.get("data");
-  if (!b64) { document.body.textContent = "No data payload."; return; }
+  if (!b64) {
+    document.body.textContent = "No data payload.";
+    return;
+  }
 
   let payload;
   try {
@@ -24,20 +30,24 @@
   const { cfg = {}, rows = [], columns = [] } = payload;
   const { jsPDF } = window.jspdf;
 
-  // 2) Build PDF
+  // 2) Build the PDF
   const doc = new jsPDF(cfg.landscape ? "l" : "p", "pt", "a4");
-  const left=cfg.margins?.left ?? 40, right=cfg.margins?.right ?? 40,
-        top=cfg.margins?.top ?? 60, bottom=cfg.margins?.bottom ?? 40;
+  const left   = cfg.margins?.left   ?? 40;
+  const right  = cfg.margins?.right  ?? 40;
+  const top    = cfg.margins?.top    ?? 60;
+  const bottom = cfg.margins?.bottom ?? 40;
 
   let y = top;
 
   // Title
-  doc.setFont("helvetica","bold");
-  doc.setFontSize(16);
-  doc.text(cfg.title || "Report", left, y);
-  y += 22;
+  if (cfg.title) {
+    doc.setFont("helvetica","bold");
+    doc.setFontSize(16);
+    doc.text(cfg.title, left, y);
+    y += 22;
+  }
 
-  // Optional key/value fields
+  // Key/value fields
   if (Array.isArray(cfg.fields) && cfg.fields.length) {
     doc.setFont("helvetica","normal");
     doc.setFontSize(10);
@@ -63,11 +73,12 @@
     styles: { fontSize: cfg.fontSize || 10, cellPadding: 4 }
   });
 
-  // 3) Show the PDF in this same tab (no extra popups)
+  // 3) Replace the runner page with the PDF directly
   const blob = doc.output("blob");
   const url  = URL.createObjectURL(blob);
-  document.body.style.margin = "0";
-  document.body.innerHTML =
-    "<iframe src='" + url + "' width='100%' height='100%' style='border:0;'></iframe>";
+  window.location.replace(url);
 })();
 </script>
+</body>
+</html>
+
