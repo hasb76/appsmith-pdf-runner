@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>PDF Runner</title>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+<script>
+(function () {
+  // 1) Read base64 payload from the URL hash
+  //    URL shape: https://your-site/pdf-runner.html#data=<base64>
+  const raw = (location.hash || "").replace(/^#/, "");
+  const params = new URLSearchParams(raw);
+  const b64 = params.get("data");
+  if (!b64) {
+    document.body.textContent = "No data payload.";
+    return;
+  }
+
+  let payload;
+  try {
+    payload = JSON.parse(decodeURIComponent(escape(atob(b64))));
+  } catch (e) {
+    document.body.textContent = "Invalid payload.";
+    return;
+  }
+
+  const { cfg = {}, rows = [], columns = [] } = payload;
+  const { jsPDF } = window.jspdf;
+
+  // 2) Build the PDF
+  const doc = new jsPDF(cfg.landscape ? "l" : "p", "pt", "a4");
+  const left   = cfg.margins?.left   ?? 40;
+  const right  = cfg.margins?.right  ?? 40;
+  const top    = cfg.margins?.top    ?? 60;
+  const bottom = cfg.margins?.bottom ?? 40;
+
+  let y = top;
+
+  // Title
+  if (cfg.title) {
+    doc.setFont("helvetica","bold");
+    doc.setFontSize(16);
+    doc.text(cfg.title, left, y);
+    y += 22;
+  }
+
+  // Key/value fields
+  if (Array.isArray(cfg.fields) && cfg.fields.length) {
+    doc.setFont("helvetica","normal");
+    doc.setFontSize(10);
+    cfg.fields.forEach(f => {
+      doc.text(String(f.label ?? ""), left, y);
+      doc.text(String(f.value ?? ""), left + 120, y);
+      y += 14;
+    });
+    y += 6;
+  }
+
+  // Table
+  const cols = (columns && columns.length) ? columns : Object.keys(rows[0] || {});
+  const headers = (cfg.columnHeaders && cfg.columnHeaders.length === cols.length)
+    ? cfg.columnHeaders : cols;
+  const body = rows.map(r => cols.map(c => r?.[c] == null ? "" : String(r[c])));
+
+  doc.autoTable({
+    head: [headers],
+    body,
+    startY: y,
+    margin: { left, right, top, bottom },
+    styles: { fontSize: cfg.fontSize || 10, cellPadding: 4 }
+  });
+
+  // 3) Replace the runner page with the PDF directly
+  const blob = doc.output("blob");
+  const url  = URL.createObjectURL(blob);
+  window.location.replace(url);
+})();
+</script>
+</body>
+</html>
